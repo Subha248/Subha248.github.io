@@ -193,7 +193,7 @@
         }
 
         .skill-card:hover {
-            transform: translateY(-8px) scale(1.02);
+            transform: translateY(-8px) scale(102%);
             border-color: #a855f7;
             box-shadow: 0 20px 30px -15px rgba(139,92,246,0.3);
         }
@@ -545,10 +545,16 @@
     </footer>
 </div>
 
-<!-- Music toggle button -->
+<!-- Music toggle button + custom audio -->
 <div class="music-btn" id="musicToggle">
     <i class="fas fa-music"></i>
 </div>
+<audio id="bgmAudio" loop preload="auto">
+    <source src="YOUR_MUSIC_FILE.mp3" type="audio/mpeg">
+    <!-- Add fallback formats if needed: -->
+    <!-- <source src="YOUR_MUSIC_FILE.ogg" type="audio/ogg"> -->
+    Your browser does not support the audio element.
+</audio>
 
 <script>
     (function() {
@@ -576,7 +582,6 @@
                 this.size = 12 + Math.random() * 8;
                 this.speedX = (Math.random() - 0.5) * 0.8;
                 this.speedY = (Math.random() - 0.5) * 0.8;
-                this.angle = Math.random() * Math.PI * 2;
                 this.wingAngle = 0;
                 this.wingSpeed = 0.1 + Math.random() * 0.1;
                 this.color = `hsl(${260 + Math.random() * 40}, 70%, 65%)`;
@@ -675,101 +680,38 @@
         }
         animateButterflies();
         
-        // ==================== AMBIENT BGM (Web Audio) ====================
-        let audioContext = null;
+        // ==================== CUSTOM MUSIC PLAYER ====================
+        const audio = document.getElementById('bgmAudio');
+        const toggleBtn = document.getElementById('musicToggle');
         let isPlaying = false;
-        let masterGain = null;
-        let osc1 = null, osc2 = null, filter = null;
-        let animationId = null;
         
-        const musicToggle = document.getElementById('musicToggle');
+        // Set volume (0.0 to 1.0) – adjust as you like
+        audio.volume = 0.3;
         
-        function initAudio() {
-            if (audioContext) return;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioContext.createGain();
-            masterGain.gain.value = 0.15; // low, ambient volume
-            masterGain.connect(audioContext.destination);
-            
-            // Create two detuned oscillators for a pad-like sound
-            osc1 = audioContext.createOscillator();
-            osc2 = audioContext.createOscillator();
-            filter = audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 800;
-            filter.Q.value = 2;
-            
-            osc1.type = 'sine';
-            osc2.type = 'sine';
-            osc1.frequency.value = 261.63; // C4
-            osc2.frequency.value = 261.63 * 1.005; // slight detune
-            
-            osc1.connect(filter);
-            osc2.connect(filter);
-            filter.connect(masterGain);
-            
-            // LFO for gentle vibrato
-            const lfo = audioContext.createOscillator();
-            lfo.frequency.value = 2;
-            const lfoGain = audioContext.createGain();
-            lfoGain.gain.value = 2;
-            lfo.connect(lfoGain);
-            lfoGain.connect(osc1.frequency);
-            lfoGain.connect(osc2.frequency);
-            lfo.start();
-            
-            osc1.start();
-            osc2.start();
-            
-            // Slowly modulate filter for movement
-            function animateFilter() {
-                if (!isPlaying) return;
-                const now = audioContext.currentTime;
-                const t = (performance.now() / 10000) % (Math.PI * 2);
-                const freq = 400 + Math.sin(t) * 150;
-                filter.frequency.linearRampToValueAtTime(freq, now + 0.1);
-                animationId = requestAnimationFrame(animateFilter);
-            }
-            
-            animateFilter();
-        }
-        
-        function startMusic() {
-            if (!audioContext) {
-                initAudio();
-                audioContext.resume().then(() => {
-                    isPlaying = true;
-                    musicToggle.innerHTML = '<i class="fas fa-volume-up"></i>';
-                });
-            } else {
-                audioContext.resume().then(() => {
-                    isPlaying = true;
-                    musicToggle.innerHTML = '<i class="fas fa-volume-up"></i>';
-                });
-            }
-        }
-        
-        function stopMusic() {
-            if (audioContext) {
-                audioContext.suspend();
+        // Attempt to autoplay is blocked by browsers, so we rely on button click.
+        toggleBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                audio.pause();
                 isPlaying = false;
-                musicToggle.innerHTML = '<i class="fas fa-music"></i>';
-                if (animationId) cancelAnimationFrame(animationId);
-            }
-        }
-        
-        musicToggle.addEventListener('click', () => {
-            if (!audioContext) {
-                startMusic();
-            } else if (isPlaying) {
-                stopMusic();
+                toggleBtn.innerHTML = '<i class="fas fa-music"></i>';
             } else {
-                startMusic();
+                // Play and catch any errors (e.g., if file not found)
+                audio.play().then(() => {
+                    isPlaying = true;
+                    toggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }).catch(error => {
+                    console.warn('Audio play failed:', error);
+                    alert('Could not play music. Make sure the audio file exists (e.g., "YOUR_MUSIC_FILE.mp3") and is in the same folder as this page.');
+                });
             }
         });
         
-        // Optional: start on first user interaction anywhere? But button is fine.
-        // For better UX, we can also start on any click if not yet started, but button is explicit.
+        // Optional: when audio ends naturally (loop is on, but just in case)
+        audio.addEventListener('ended', () => {
+            if (audio.loop) return;
+            isPlaying = false;
+            toggleBtn.innerHTML = '<i class="fas fa-music"></i>';
+        });
     })();
 </script>
 </body>
